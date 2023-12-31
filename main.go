@@ -73,7 +73,7 @@ func StartHTTP(_ *cobra.Command, args []string) {
 	r.POST("/api/net/log", service.HandleNetLog)
 	r.POST("/api/net/logs", service.HandleNetLogs)
 
-	//r.GET("/api/generate", service.HandleGenerate)
+	r.GET("/api/generate", service.HandleGenerate)
 	err := r.Run(conf.Config.Service.Port)
 	if err != nil {
 		panic(err)

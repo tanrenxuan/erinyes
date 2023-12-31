@@ -17,11 +17,8 @@ func createDir(dirName string) {
 	}
 }
 
-// GenerateDot 生成dot图文件
-func GenerateDot(fileName string) {
-	createDir("graphs/")
-	dotName := "graphs/" + fileName + ".dot"
-
+// GenerateDotGraph 生成内存中的dot
+func GenerateDotGraph() *gographviz.Graph {
 	graphAst, _ := gographviz.Parse([]byte(`digraph G{}`))
 	graph := gographviz.NewGraph()
 	gographviz.Analyse(graphAst, graph)
@@ -118,6 +115,14 @@ func GenerateDot(fileName string) {
 		}
 		pageNumber++
 	}
+	return graph
+}
+
+// GenerateDot 生成dot图文件
+func GenerateDot(fileName string) {
+	createDir("graphs/")
+	dotName := "graphs/" + fileName + ".dot"
+	graph := GenerateDotGraph()
 	// 写入文件中
 	fo, err := os.OpenFile(dotName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
