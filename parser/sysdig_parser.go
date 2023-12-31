@@ -18,6 +18,10 @@ func NewSysdigParser(pusher *Pusher) *SysdigParser {
 	}
 }
 
+func (p *SysdigParser) ParserType() string {
+	return SYSDIG
+}
+
 // ParsePushLine 实现 parser 接口
 func (p *SysdigParser) ParsePushLine(rawLine string) error {
 	err, sysdigLog := SplitSysdigLine(rawLine)

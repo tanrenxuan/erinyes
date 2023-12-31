@@ -8,7 +8,13 @@ import (
 
 type Parser interface {
 	ParsePushLine(rawLine string) error // 解析原始日志，生成 ParsedLog 放入 Pusher 中
+	ParserType() string
 }
+
+const (
+	SYSDIG string = "sysdig"
+	NET    string = "net"
+)
 
 type Pusher struct {
 	parsedLogCh *chan ParsedLog

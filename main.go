@@ -6,7 +6,9 @@ import (
 	"erinyes/logs"
 	"erinyes/models"
 	"erinyes/parser"
+	"erinyes/service"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -61,6 +63,21 @@ func GenerateGraph(_ *cobra.Command, args []string) {
 }
 
 func StartHTTP(_ *cobra.Command, args []string) {
+	go parser.HTTPLogParse(true)
+	r := gin.Default()
+
+	r.GET("/api/ping", service.HandlePing)
+	r.POST("/api/sysdig/log", service.HandleSysdigLog)
+	r.POST("/api/sysdig/logs", service.HandleSysdigLogs)
+
+	r.POST("/api/net/log", service.HandleNetLog)
+	r.POST("/api/net/logs", service.HandleNetLogs)
+
+	//r.GET("/api/generate", service.HandleGenerate)
+	err := r.Run(conf.Config.Service.Port)
+	if err != nil {
+		panic(err)
+	}
 
 }
 

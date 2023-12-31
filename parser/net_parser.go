@@ -15,6 +15,10 @@ func NewNetParser(pusher *Pusher) *NetParser {
 	}
 }
 
+func (p *NetParser) ParserType() string {
+	return NET
+}
+
 // ParsePushLine 实现 parser 的接口
 func (p *NetParser) ParsePushLine(rawLine string) error {
 	err, netLog := SplitNetLine(rawLine)
