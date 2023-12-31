@@ -21,3 +21,10 @@ func (Event) TableName() string {
 func (e Event) EdgeName() string {
 	return helper.AddQuotation(e.Relation)
 }
+
+func (e Event) HasEdgeUUID() bool {
+	if e.UUID != "unknown" {
+		return true
+	}
+	return false
+}

@@ -23,3 +23,9 @@ func (Net) TableName() string {
 func (n Net) EdgeName() string {
 	return helper.AddQuotation(n.Method)
 }
+func (n Net) HasEdgeUUID() bool {
+	if n.UUID != "" {
+		return true
+	}
+	return false
+}

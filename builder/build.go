@@ -129,6 +129,11 @@ func GenerateDot(fileName string) {
 
 // GenerateEdge 在图中生成一条边
 func GenerateEdge(startVertex models.DotVertex, endVertex models.DotVertex, edge models.DotEdge, graph *gographviz.Graph) {
+	// 基于 UUID 过滤一部分边
+	if !edge.HasEdgeUUID() {
+		return
+	}
+
 	// 边属性
 	edgeM := make(map[string]string)
 	edgeM["label"] = edge.EdgeName()

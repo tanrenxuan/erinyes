@@ -10,4 +10,5 @@ type DotVertex interface {
 // DotEdge 抽象出的dot文件边
 type DotEdge interface {
 	EdgeName() string
+	HasEdgeUUID() bool
 }
