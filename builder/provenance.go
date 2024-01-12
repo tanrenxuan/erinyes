@@ -33,7 +33,8 @@ func Provenance(hostID string, containerID string, processID string, processName
 		return nil
 	}
 	g := multi.NewWeightedDirectedGraph()
-	addedLine := make(map[int]bool)        // key为db/event中的primary id
+	addedEventLine := make(map[int]bool)   // key为db/event中的primary id
+	addedNetLine := make(map[int]bool)     // key为db/net中的primary id
 	addedNode := make(map[RecordLoc]int64) // key为RecordLoc value为GraphNode的id
 	id := AddNewGraphNode(g, Process,
 		ProcessInfo{
@@ -50,11 +51,11 @@ func Provenance(hostID string, containerID string, processID string, processName
 	logs.Logger.Infof("开始构建溯源图，processID: %s, processName: %s, 其所在表: %s, 对应主键: %d", processID, process.ProcessName, ProcessTable, process.ID)
 	logs.Logger.Infof("开始正向BFS溯源...")
 	startTime := time.Now()
-	BFS(g, root, addedLine, addedNode, false, depth)
+	BFS(g, root, addedEventLine, addedNetLine, addedNode, false, depth)
 	logs.Logger.Infof("It takes about %v seconds to forward BFS", time.Since(startTime).Seconds())
 	middleTime := time.Now()
 	logs.Logger.Infof("开始逆向BFS溯源...")
-	BFS(g, root, addedLine, addedNode, true, depth)
+	BFS(g, root, addedEventLine, addedNetLine, addedNode, true, depth)
 	logs.Logger.Infof("It takes about %v seconds to backward BFS", time.Since(middleTime).Seconds())
 	logs.Logger.Infof("子图构建成功...")
 	logs.Logger.Infof("It takes about %v seconds to build Provenance Graph", time.Since(startTime).Seconds())
@@ -86,7 +87,7 @@ func AddNewGraphEdge(g *multi.WeightedDirectedGraph, from int64, to int64, relat
 }
 
 // BFS 对数据库进行遍历，获取某个实体int的所有前向(后向)遍历子图(不包括root)
-func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedLine map[int]bool, addedNode map[RecordLoc]int64, reverse bool, maxLevel *int) {
+func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]bool, addedNetLine map[int]bool, addedNode map[RecordLoc]int64, reverse bool, maxLevel *int) {
 	// 无需处理root
 	visitedNode := map[RecordLoc]bool{root: true}
 	var queue []RecordLoc
@@ -104,7 +105,7 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedLine map[int]bool,
 		size := len(queue)
 		for i := 0; i < size; i++ { // 遍历当前层所有顶点（已经处理过）
 			cur := queue[0]                                    // 必须用0 不能用i
-			events := FetchEvents(cur.Key, cur.Table, reverse) // 寻找该顶点出发的所有边
+			events := FetchEvents(cur.Key, cur.Table, reverse) // 寻找该顶点出发的所有Event边
 			for _, e := range events {
 				// 先存顶点
 				var tempRecord RecordLoc
@@ -136,8 +137,8 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedLine map[int]bool,
 					}
 				}
 				// 再存边
-				if _, ok := addedLine[e.ID]; !ok { // 该事件(line)没有访问过
-					addedLine[e.ID] = true
+				if _, ok := addedEventLine[e.ID]; !ok { // 该事件(line)没有访问过
+					addedEventLine[e.ID] = true
 					var (
 						fromID int64
 						toID   int64
@@ -160,12 +161,64 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedLine map[int]bool,
 					AddNewGraphEdge(g, fromID, toID, e.Relation, e.Time, 0) // weight暂时为空
 				}
 			}
+			nets := FetchNets(cur.Key, cur.Table, reverse)
+			for _, n := range nets {
+				// 先存顶点
+				var tempRecord RecordLoc
+				if reverse { // 逆向
+					tempRecord = RecordLoc{Key: n.SrcID, Table: SocketTable}
+				} else { // 正向
+					tempRecord = RecordLoc{Key: n.DstID, Table: SocketTable}
+				}
+				if _, ok := visitedNode[tempRecord]; !ok { // 该顶点没有访问过
+					// 判断该顶点是否已经存在于图中
+					if _, ok := addedNode[tempRecord]; ok { // 该顶点已经在图中
+						visitedNode[tempRecord] = true
+						queue = append(queue, tempRecord) // 该顶点已经存在于图中，但依然需要遍历一次（正向和逆向都经过该点，但后续路劲存在差异）
+					} else { // 该顶点不在图中
+						if nodeType, nodeInfo, err := GetEntityNode(tempRecord); err != nil {
+							logs.Logger.WithError(err).Errorf("failed to fetch entity")
+							continue // 不再考虑边
+						} else {
+							id := AddNewGraphNode(g, nodeType, nodeInfo) // 处理该顶点，加入图中
+							visitedNode[tempRecord] = true
+							addedNode[tempRecord] = id
+							queue = append(queue, tempRecord) // 只有将该顶点成功加入Graph中，才将该顶点送入queue
+						}
+					}
+				}
+				// 再存边
+				if _, ok := addedNetLine[n.ID]; !ok { // 该事件(line)没有访问过
+					addedNetLine[n.ID] = true
+					var (
+						fromID int64
+						toID   int64
+						tempA  int64
+						tempB  int64
+					)
+					if tempA, ok = addedNode[tempRecord]; !ok {
+						panic("No such Node in the graph")
+					}
+					if tempB, ok = addedNode[cur]; !ok {
+						panic("No such Node in the graph")
+					}
+					if reverse { // 逆向
+						fromID = tempA
+						toID = tempB
+					} else { // 正向
+						fromID = tempB
+						toID = tempA
+					}
+					AddNewGraphEdge(g, fromID, toID, n.Method, n.Time, 0) // weight暂时为空
+				}
+			}
 			queue = queue[1:] // 删除头部
 		}
 		currLevel++
 	}
 }
 
+// FetchEvents 寻找与该顶点相连的所有的event边
 func FetchEvents(key int, table string, reverse bool) []models.Event {
 	mysqlDB := models.GetMysqlDB()
 	// 根据该实体所在表推断其sql
@@ -206,6 +259,25 @@ func FetchEvents(key int, table string, reverse bool) []models.Event {
 		return nil
 	}
 	return events
+}
+
+// FetchNets 寻找所有与该顶点有关的网络流量边
+func FetchNets(key int, table string, reverse bool) []models.Net {
+	if table != SocketTable { // 如果当前顶点是 socket，则还需要寻找有关的net边
+		return nil
+	}
+	var nets []models.Net
+	mysqlDB := models.GetMysqlDB()
+	if reverse {
+		mysqlDB = mysqlDB.Where("dst_id = ?", strconv.Itoa(key))
+	} else {
+		mysqlDB = mysqlDB.Where("src_id = ?", strconv.Itoa(key))
+	}
+	if err := mysqlDB.Find(&nets).Error; err != nil {
+		logs.Logger.WithError(err).Errorf("failed to fetch nets(edges) from db")
+		return nil
+	}
+	return nets
 }
 
 // GetTableName 根据事件的eventClass推断应该从哪个表获取顶点

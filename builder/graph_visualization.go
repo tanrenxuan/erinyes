@@ -27,7 +27,7 @@ func callSystem(s string, args ...string) error {
 }
 
 // Visualize 可视化带权有向多重图
-func Visualize(g *multi.WeightedDirectedGraph) error {
+func Visualize(g *multi.WeightedDirectedGraph, filename string) error {
 	graphAst, _ := gographviz.ParseString(`digraph G{}`)
 	graph := gographviz.NewGraph()
 	if err := gographviz.Analyse(graphAst, graph); err != nil {
@@ -72,8 +72,8 @@ func Visualize(g *multi.WeightedDirectedGraph) error {
 	}
 	fmt.Printf("Edges: %d\n", count)
 	//fmt.Println(graph.String())
-	if err := ioutil.WriteFile("graphs/test.dot", []byte(graph.String()), 0666); err != nil {
+	if err := ioutil.WriteFile("graphs/"+filename+".dot", []byte(graph.String()), 0666); err != nil {
 		return err
 	}
-	return callSystem("dot", "-T", "svg", "graphs/test.dot", "-o", "graphs/test.svg")
+	return callSystem("dot", "-T", "svg", "graphs/"+filename+".dot", "-o", "graphs/"+filename+".svg")
 }

@@ -99,14 +99,14 @@ func GenerateDot(_ *cobra.Command, args []string) {
 }
 
 func BuildSubGraph(cmd *cobra.Command, args []string) {
-	if !(len(args) == 4 || len(args) == 5) {
+	if !(len(args) == 5 || len(args) == 6) {
 		fmt.Printf("construct cmd must need host, container and process id, depth optional.\n")
 		logs.Logger.Errorf("construct graph failed, args = %s", args)
 		return
 	}
 	var g *multi.WeightedDirectedGraph
-	if len(args) == 5 {
-		depth, err := strconv.Atoi(args[4])
+	if len(args) == 6 {
+		depth, err := strconv.Atoi(args[5])
 		if err == nil {
 			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, &depth)
 		} else {
@@ -121,7 +121,7 @@ func BuildSubGraph(cmd *cobra.Command, args []string) {
 		logs.Logger.Infof("failed to get provenance graph")
 		return
 	}
-	if err := builder.Visualize(g); err != nil {
+	if err := builder.Visualize(g, args[4]); err != nil {
 		logs.Logger.WithError(err).Errorf("failed to visualize provenance graph")
 		fmt.Printf("Visualize provenance graph for %s failed, err = %s", args[3], err.Error())
 		return
