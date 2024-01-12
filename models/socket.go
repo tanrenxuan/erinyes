@@ -40,9 +40,9 @@ func (s Socket) VertexClusterID() string {
 
 // VertexName 返回该节点在dot文件中的名称
 func (s Socket) VertexName() string {
-	if len(s.DstPort) >= 5 { // 减少图中 socket 的数量（边的数量不变，聚合到了一个socket），但是db中的图结构不变
-		return helper.AddQuotation(s.DstIP + ":" + "10000" + "#" + s.HostID + "_" + s.ContainerID)
-	}
+	//if len(s.DstPort) >= 5 { // 减少图中 socket 的数量（边的数量不变，聚合到了一个socket），但是db中的图结构不变
+	//	return helper.AddQuotation(s.DstIP + ":" + "10000" + "#" + s.HostID + "_" + s.ContainerID)
+	//}
 	return helper.AddQuotation(s.DstIP + ":" + s.DstPort + "#" + s.HostID + "_" + s.ContainerID)
 }
 

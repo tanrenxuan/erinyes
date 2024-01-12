@@ -1,6 +1,8 @@
 package builder
 
-import "fmt"
+import (
+	"erinyes/helper"
+)
 
 type NodeType int
 
@@ -34,11 +36,15 @@ type ProcessInfo struct {
 }
 
 func (p ProcessInfo) Info() string {
-	return fmt.Sprintf("%s_%s", p.Pid, p.Name)
+	return p.Pid + "_" + p.Name + "#" + p.HostID + "_" + p.ContainerID
 }
 
 func (p ProcessInfo) Flag() string {
-	return p.HostID + "#" + p.ContainerID
+	return "cluster" + p.HostID + "_" + p.ContainerID
+}
+
+func (p ProcessInfo) Shape() string {
+	return "box"
 }
 
 // FileInfo file node's information
@@ -51,11 +57,15 @@ type FileInfo struct {
 }
 
 func (f FileInfo) Info() string {
-	return fmt.Sprintf("%s", f.Path)
+	return f.Path + "#" + f.HostID + "_" + f.ContainerID
 }
 
 func (f FileInfo) Flag() string {
-	return f.HostID + "#" + f.ContainerID
+	return "cluster" + f.HostID + "_" + f.ContainerID
+}
+
+func (f FileInfo) Shape() string {
+	return "ellipse"
 }
 
 // SocketInfo socket node's information
@@ -69,16 +79,21 @@ type SocketInfo struct {
 }
 
 func (s SocketInfo) Info() string {
-	return fmt.Sprintf("%s:%s", s.DstIP, s.DstPort)
+	return s.DstIP + ":" + s.DstPort + "#" + s.HostID + "_" + s.ContainerID
 }
 
 func (s SocketInfo) Flag() string {
-	return s.HostID + "#" + s.ContainerID
+	return "cluster" + s.HostID + "_" + s.ContainerID
+}
+
+func (s SocketInfo) Shape() string {
+	return "diamond"
 }
 
 type NodeInfo interface {
 	Info() string
 	Flag() string
+	Shape() string
 }
 
 // GraphNode is provenance graph node
@@ -93,14 +108,14 @@ func (n GraphNode) ID() int64 {
 	return n.id
 }
 
-func (n GraphNode) Info() string {
-	return fmt.Sprintf("\"%d %s\"", n.ID(), n.nodeInfo.Info())
+func (n GraphNode) VertexClusterID() string {
+	return helper.AddQuotation(n.nodeInfo.Flag())
 }
 
-func (n GraphNode) TypeString() string {
-	return n.nodeType.String()
+func (n GraphNode) VertexName() string {
+	return helper.AddQuotation(n.nodeInfo.Info())
 }
 
-func (n GraphNode) InfoRaw() NodeInfo {
-	return n.nodeInfo
+func (n GraphNode) VertexShape() string {
+	return n.nodeInfo.Shape()
 }

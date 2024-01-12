@@ -135,9 +135,9 @@ func GenerateDot(fileName string) {
 // GenerateEdge 在图中生成一条边
 func GenerateEdge(startVertex models.DotVertex, endVertex models.DotVertex, edge models.DotEdge, graph *gographviz.Graph) {
 	// 基于 UUID 过滤一部分边
-	if !edge.HasEdgeUUID() {
-		return
-	}
+	//if !edge.HasEdgeUUID() {
+	//	return
+	//}
 
 	// 边属性
 	edgeM := make(map[string]string)
@@ -167,4 +167,19 @@ func GenerateEdge(startVertex models.DotVertex, endVertex models.DotVertex, edge
 
 	// 加入边
 	graph.AddEdge(startVertex.VertexName(), endVertex.VertexName(), true, edgeM)
+}
+
+// GenerateVertex 在图中生成一个单独的点
+func GenerateVertex(vertex models.DotVertex, graph *gographviz.Graph) {
+	// 顶点属性
+	vertexM := make(map[string]string)
+	vertexM["shape"] = vertex.VertexShape()
+
+	// 加入顶点所在子图
+	SubG := vertex.VertexClusterID()
+	SubGM := make(map[string]string)
+	SubGM["label"] = vertex.VertexClusterID()
+	graph.AddSubGraph("G", SubG, SubGM)
+	// 将顶点加入顶点子图
+	graph.AddNode(SubG, vertex.VertexName(), vertexM)
 }
