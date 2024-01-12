@@ -105,17 +105,18 @@ func BuildSubGraph(cmd *cobra.Command, args []string) {
 		return
 	}
 	var g *multi.WeightedDirectedGraph
+	timeLimit := true
 	if len(args) == 6 {
 		depth, err := strconv.Atoi(args[5])
 		if err == nil {
-			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, &depth)
+			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, &depth, timeLimit)
 		} else {
 			fmt.Printf("depth is not valid, use default depth.\n")
-			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, nil)
+			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, nil, timeLimit)
 		}
 	} else {
 		fmt.Printf("depth not absent, use default depth.\n")
-		g = builder.Provenance(args[0], args[1], args[2], args[3], nil, nil)
+		g = builder.Provenance(args[0], args[1], args[2], args[3], nil, nil, timeLimit)
 	}
 	if g == nil {
 		logs.Logger.Infof("failed to get provenance graph")

@@ -16,7 +16,7 @@ const (
 	NETWORKV1 string = "Network_V1" // process -> socket
 	NETWORKV2 string = "NetWork_V2" // socket -> process
 	FILEV1    string = "File_V1"    // process -> file
-	FILEV2    string = "FIle_V2"    // file -> process
+	FILEV2    string = "File_V2"    // file -> process
 )
 
 // syscall

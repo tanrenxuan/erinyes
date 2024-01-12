@@ -24,7 +24,7 @@ type RecordLoc struct {
 }
 
 // Provenance 根据 processID 溯源
-func Provenance(hostID string, containerID string, processID string, processName string, timestamp *int, depth *int) *multi.WeightedDirectedGraph {
+func Provenance(hostID string, containerID string, processID string, processName string, timestamp *int64, depth *int, timeLimit bool) *multi.WeightedDirectedGraph {
 	// get root process
 	mysqlDB := models.GetMysqlDB()
 	var process models.Process
@@ -51,11 +51,19 @@ func Provenance(hostID string, containerID string, processID string, processName
 	logs.Logger.Infof("开始构建溯源图，processID: %s, processName: %s, 其所在表: %s, 对应主键: %d", processID, process.ProcessName, ProcessTable, process.ID)
 	logs.Logger.Infof("开始正向BFS溯源...")
 	startTime := time.Now()
-	BFS(g, root, addedEventLine, addedNetLine, addedNode, false, depth)
+	node2time := make(map[RecordLoc]int64) // key为RecordLoc value为timestamp 使用该map进行搜索时的时间戳过滤
+	if timestamp != nil {
+		node2time[root] = *timestamp
+	}
+	BFS(g, root, addedEventLine, addedNetLine, addedNode, node2time, false, depth, timeLimit)
 	logs.Logger.Infof("It takes about %v seconds to forward BFS", time.Since(startTime).Seconds())
 	middleTime := time.Now()
 	logs.Logger.Infof("开始逆向BFS溯源...")
-	BFS(g, root, addedEventLine, addedNetLine, addedNode, true, depth)
+	node2time = make(map[RecordLoc]int64) // 这里通过重新赋值来清空map 如果map不清空，时间戳过滤会产生错误
+	if timestamp != nil {
+		node2time[root] = *timestamp
+	}
+	BFS(g, root, addedEventLine, addedNetLine, addedNode, node2time, true, depth, timeLimit)
 	logs.Logger.Infof("It takes about %v seconds to backward BFS", time.Since(middleTime).Seconds())
 	logs.Logger.Infof("子图构建成功...")
 	logs.Logger.Infof("It takes about %v seconds to build Provenance Graph", time.Since(startTime).Seconds())
@@ -87,7 +95,7 @@ func AddNewGraphEdge(g *multi.WeightedDirectedGraph, from int64, to int64, relat
 }
 
 // BFS 对数据库进行遍历，获取某个实体int的所有前向(后向)遍历子图(不包括root)
-func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]bool, addedNetLine map[int]bool, addedNode map[RecordLoc]int64, reverse bool, maxLevel *int) {
+func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]bool, addedNetLine map[int]bool, addedNode map[RecordLoc]int64, node2time map[RecordLoc]int64, reverse bool, maxLevel *int, timeLimit bool) {
 	// 无需处理root
 	visitedNode := map[RecordLoc]bool{root: true}
 	var queue []RecordLoc
@@ -107,6 +115,17 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]
 			cur := queue[0]                                    // 必须用0 不能用i
 			events := FetchEvents(cur.Key, cur.Table, reverse) // 寻找该顶点出发的所有Event边
 			for _, e := range events {
+				if timeLimit { // 时间戳限制
+					if reverse { // 逆向搜索，时间戳应该递减
+						if node2time[cur] != 0 && node2time[cur] < e.Time {
+							continue
+						}
+					} else { // 正向搜索，时间戳应该递增
+						if node2time[cur] != 0 && node2time[cur] > e.Time {
+							continue
+						}
+					}
+				}
 				// 先存顶点
 				var tempRecord RecordLoc
 				tableName, err := GetTableName(e.EventClass, reverse)
@@ -133,6 +152,22 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]
 							visitedNode[tempRecord] = true
 							addedNode[tempRecord] = id
 							queue = append(queue, tempRecord) // 只有将该顶点成功加入Graph中，才将该顶点送入queue
+						}
+					}
+					// 该顶点没有访问过（即便由于此前的一次正向遍历，已经存在于图中），直接赋值时间戳
+					if timeLimit {
+						node2time[tempRecord] = e.Time
+					}
+				} else { // 该顶点访问过，需要更新一次时间戳
+					if timeLimit {
+						if reverse { // 逆向搜索，时间戳取max
+							if node2time[tempRecord] != 0 && node2time[tempRecord] < e.Time {
+								node2time[tempRecord] = e.Time
+							}
+						} else { // 正向搜索，时间戳取min
+							if node2time[tempRecord] != 0 && node2time[tempRecord] > e.Time {
+								node2time[tempRecord] = e.Time
+							}
 						}
 					}
 				}
@@ -163,6 +198,17 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]
 			}
 			nets := FetchNets(cur.Key, cur.Table, reverse)
 			for _, n := range nets {
+				if timeLimit { // 时间戳限制
+					if reverse { // 逆向搜索，时间戳应该递减
+						if node2time[cur] != 0 && node2time[cur] < n.Time {
+							continue
+						}
+					} else { // 正向搜索，时间戳应该递增
+						if node2time[cur] != 0 && node2time[cur] > n.Time {
+							continue
+						}
+					}
+				}
 				// 先存顶点
 				var tempRecord RecordLoc
 				if reverse { // 逆向
@@ -184,6 +230,21 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]
 							visitedNode[tempRecord] = true
 							addedNode[tempRecord] = id
 							queue = append(queue, tempRecord) // 只有将该顶点成功加入Graph中，才将该顶点送入queue
+						}
+					}
+					if timeLimit {
+						node2time[tempRecord] = n.Time
+					}
+				} else {
+					if timeLimit {
+						if reverse { // 逆向搜索，时间戳取max
+							if node2time[tempRecord] != 0 && node2time[tempRecord] < n.Time {
+								node2time[tempRecord] = n.Time
+							}
+						} else { // 正向搜索，时间戳取min
+							if node2time[tempRecord] != 0 && node2time[tempRecord] > n.Time {
+								node2time[tempRecord] = n.Time
+							}
 						}
 					}
 				}
