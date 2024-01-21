@@ -20,6 +20,7 @@ func (Event) TableName() string {
 // EdgeName 实现接口 返回Dot文件中边的名称
 func (e Event) EdgeName() string {
 	return helper.AddQuotation(e.Relation)
+	//return helper.AddQuotation(e.Relation + "_" + e.UUID)
 }
 
 func (e Event) HasEdgeUUID() bool {
@@ -27,4 +28,8 @@ func (e Event) HasEdgeUUID() bool {
 		return true
 	}
 	return false
+}
+
+func (e Event) GetUUID() string {
+	return e.UUID
 }

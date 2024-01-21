@@ -2,6 +2,7 @@ package parser
 
 import (
 	"erinyes/conf"
+	"erinyes/helper"
 	"erinyes/logs"
 	"fmt"
 	"regexp"
@@ -48,8 +49,11 @@ const (
 	SYS_WRITEV string = "writev"
 )
 
+const UNKNOWN string = "unknown"
+
 type SysdigLog struct {
 	Time          int64
+	Tid           string // thread id
 	ProcessName   string
 	Pid           string
 	VPid          string // pid in container
@@ -97,7 +101,7 @@ func Convert2Datetime(timestamp int64) (string, error) {
 
 func SplitSysdigLine(rawLine string) (error, *SysdigLog) {
 	fields := strings.Split(rawLine, " ") // args 在最后
-	if len(fields) < 13 {
+	if len(fields) < 15 {
 		return fmt.Errorf("not enough fileds"), nil
 	}
 	timestamp, err := Convert2Timestamp(fields[0] + " " + fields[1])
@@ -108,17 +112,18 @@ func SplitSysdigLine(rawLine string) (error, *SysdigLog) {
 	return nil, &SysdigLog{
 		Time:          timestamp,
 		ProcessName:   fields[2],
-		Pid:           fields[3],
-		VPid:          fields[4],
-		Dir:           fields[5],
-		EventType:     fields[6],
-		Fd:            fields[7],
-		PPid:          fields[8],
-		Cmd:           fields[9],
-		Ret:           fields[10],
-		ContainerID:   fields[11],
-		ContainerName: fields[12],
-		Info:          fields[13:],
+		Tid:           fields[3],
+		Pid:           fields[4],
+		VPid:          fields[5],
+		Dir:           fields[6],
+		EventType:     fields[7],
+		Fd:            fields[8],
+		PPid:          fields[9],
+		Cmd:           fields[10],
+		Ret:           fields[11],
+		ContainerID:   fields[12],
+		ContainerName: fields[13],
+		Info:          fields[14:],
 		HostID:        conf.MockHostID, // 非多主机场景下直接mock
 		HostName:      conf.MockHostName,
 	}
@@ -215,12 +220,45 @@ func (s *SysdigLog) FilteredFilePath() string {
 	return s.Fd
 }
 
-// IsTriggerLog 判断是否为 node 插入的分割日志
-func (s *SysdigLog) IsTriggerLog() bool {
+// IsNodeTriggerStartLog 判断是否为 node 插入的开始分割日志
+func (s *SysdigLog) IsNodeTriggerStartLog() bool {
 	if len(s.Info) < 4 { // e.g. res=77 data=flag_data is uuid
 		return false
 	}
 	if s.ProcessName == "node" && s.EventType == SYS_WRITE && s.Info[1] == "data=flag_data" {
+		return true
+	}
+	return false
+}
+
+// IsNodeTriggerEndLog 判断是否为 node 插入的结束分割日志
+func (s *SysdigLog) IsNodeTriggerEndLog() bool {
+	if len(s.Info) < 4 { // e.g. res=77 data=end_flag_data is uuid
+		return false
+	}
+	if s.ProcessName == "node" && s.EventType == SYS_WRITE && s.Info[1] == "data=end_flag_data" {
+		return true
+	}
+	return false
+}
+
+// IsOfwatchdogTriggerStartLog 判断是否为 ofwatchdog 插入的开始分割日志
+func (s *SysdigLog) IsOfwatchdogTriggerStartLog() bool {
+	if len(s.Info) < 4 { // e.g. res=62 data=start_ofwatchdog_flag_data is uuid
+		return false
+	}
+	if s.ProcessName == "fwatchdog" && s.EventType == SYS_WRITE && s.Info[1] == "data=start_ofwatchdog_flag_data" {
+		return true
+	}
+	return false
+}
+
+// IsOfwatchdogTriggerEndLog 判断是否为 ofwatchdog 插入的结束分割日志
+func (s *SysdigLog) IsOfwatchdogTriggerEndLog() bool {
+	if len(s.Info) < 4 { // e.g. res=62 data=start_ofwatchdog_flag_data is uuid
+		return false
+	}
+	if s.ProcessName == "fwatchdog" && s.EventType == SYS_WRITE && s.Info[1] == "data=end_ofwatchdog_flag_data" {
 		return true
 	}
 	return false
@@ -264,8 +302,20 @@ func (s *SysdigLog) ConvertSysOpen() (error, string) {
 
 // GetLastRequestUUID 根据 host_id 和 container_id 获取最近一次的 request uuid
 func (s *SysdigLog) GetLastRequestUUID() string {
-	if value, exist := conf.LastRequestUUIDMap[s.HostID+"#"+s.ContainerID]; exist {
+	if s.ProcessName == "fwatchdog" {
+		if value, exist := conf.OfwatchdogRequestUUIDMap[s.HostID+"#"+s.ContainerID]; exist {
+			if len(value) == 0 {
+				return UNKNOWN
+			}
+			return helper.JoinKeys(value, ",")
+		}
+		return UNKNOWN
+	}
+	if value, exist := conf.NodeLastRequestUUIDMap[s.HostID+"#"+s.ContainerID]; exist {
+		if value == "" { // 当前uuid被清空
+			return UNKNOWN
+		}
 		return value
 	}
-	return "unknown"
+	return UNKNOWN
 }

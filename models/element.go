@@ -11,4 +11,5 @@ type DotVertex interface {
 type DotEdge interface {
 	EdgeName() string
 	HasEdgeUUID() bool
+	GetUUID() string
 }

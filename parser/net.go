@@ -60,10 +60,16 @@ func SplitNetLine(rawLine string) (error, *NetLog) {
 	}
 	// 从payload中解析出uuid
 	var uuid string
-	uuidRegex := regexp.MustCompile(`uuid: (\d+)`)
+	uuidRegex := regexp.MustCompile(`uuid: ([a-zA-Z0-9]+)`)
 	matches := uuidRegex.FindStringSubmatch(netJson.PayLoad)
 	if len(matches) > 1 {
 		uuid = matches[1]
+	} else {
+		UuidRegex := regexp.MustCompile(`Uuid: ([a-zA-Z0-9]+)`)
+		tmpMatches := UuidRegex.FindStringSubmatch(netJson.PayLoad)
+		if len(tmpMatches) > 1 {
+			uuid = tmpMatches[1]
+		}
 	}
 	netData := NetLog{
 		IPSrc:      netJson.IPSrc,

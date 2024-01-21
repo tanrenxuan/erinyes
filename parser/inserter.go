@@ -28,7 +28,7 @@ func (pi *Inserter) InsertOrQueryVertex(db *gorm.DB, vertexI ParsedVertex, count
 		if result.Error != nil { // 违反唯一约束，说明已经存在该顶点，直接查询即可
 			r := db.Where("container_id = ? AND host_id = ? AND process_vpid = ? AND process_name = ?", vertex.ContainerID, vertex.HostID, vertex.ProcessVPID, vertex.ProcessName).First(&processPO)
 			if r.Error != nil {
-				return 0, result.Error
+				return 0, r.Error
 			}
 		} else {
 			*count++
@@ -43,11 +43,12 @@ func (pi *Inserter) InsertOrQueryVertex(db *gorm.DB, vertexI ParsedVertex, count
 			ContainerName: vertex.ContainerName,
 			FilePath:      vertex.FilePath,
 		}
+		//logs.Logger.Infof("fileP0: %s", filePO.FilePath)
 		result := db.Create(&filePO)
 		if result.Error != nil { // 违反唯一约束，说明已经存在该顶点，直接查询即可
 			r := db.Where("container_id = ? AND host_id = ? AND file_path = ?", vertex.ContainerID, vertex.HostID, vertex.FilePath).First(&filePO)
 			if r.Error != nil {
-				return 0, result.Error
+				return 0, r.Error
 			}
 		} else {
 			*count++
@@ -55,6 +56,7 @@ func (pi *Inserter) InsertOrQueryVertex(db *gorm.DB, vertexI ParsedVertex, count
 		return filePO.ID, nil
 	} else if vertexI.VertexType() == SOCKETTYPE {
 		vertex := vertexI.(SocketVertex)
+		// 关联HostIP 和 Cin0IP
 		socketPO := models.Socket{
 			HostID:        vertex.HostID,
 			HostName:      vertex.HostName,
@@ -63,11 +65,13 @@ func (pi *Inserter) InsertOrQueryVertex(db *gorm.DB, vertexI ParsedVertex, count
 			DstIP:         vertex.DstIP,
 			DstPort:       vertex.DstPort,
 		}
+		socketPO.RelateHostAndCin()
+		socketPO.UnionGateway()
 		result := db.Create(&socketPO)
 		if result.Error != nil { // 违反唯一约束，说明已经存在该顶点，直接查询即可
-			r := db.Where("container_id = ? AND host_id = ? AND dst_ip = ? AND dst_port = ?", vertex.ContainerID, vertex.HostID, vertex.DstIP, vertex.DstPort).First(&socketPO)
+			r := db.Where("container_id = ? AND host_id = ? AND dst_ip = ? AND dst_port = ?", socketPO.ContainerID, socketPO.HostID, socketPO.DstIP, socketPO.DstPort).First(&socketPO)
 			if r.Error != nil {
-				return 0, result.Error
+				return 0, r.Error
 			}
 		} else {
 			*count++
@@ -102,22 +106,22 @@ func (pi *Inserter) InsertEdge(db *gorm.DB, edgeI ParsedEdge, startID int, endID
 		}
 		result := db.Create(&sysdigPO)
 		if result.Error != nil {
-			logs.Logger.WithError(result.Error).Errorf("插入边失败")
+			logs.Logger.WithError(result.Error).Errorf("插入边失败 %w", sysdigPO)
 		}
 		*count++
 		return
 	} else if edgeI.LogType() == NETTYPE {
 		netEdge := edgeI.(ParsedNetLog)
 		// 网络流量日志可以允许重复
-		//if !repeat {
-		//	models.Mu.Lock()
-		//	defer models.Mu.Unlock()
-		//	var existNetPO models.Net
-		//	result := db.Where("src_id = ? AND dst_id = ? AND method = ? AND uuid = ?", startID, endID, netEdge.Method, netEdge.UUID).First(&existNetPO)
-		//	if result.Error == nil { // 存在该记录 不需要插入
-		//		return
-		//	}
-		//}
+		if !repeat {
+			models.Mu.Lock()
+			defer models.Mu.Unlock()
+			var existNetPO models.Net
+			result := db.Where("src_id = ? AND dst_id = ? AND method = ? AND uuid = ?", startID, endID, netEdge.Method, netEdge.UUID).First(&existNetPO)
+			if result.Error == nil { // 存在该记录 不需要插入
+				return
+			}
+		}
 		netPO := models.Net{
 			SrcID:      startID,
 			DstID:      endID,
@@ -131,7 +135,7 @@ func (pi *Inserter) InsertEdge(db *gorm.DB, edgeI ParsedEdge, startID int, endID
 		}
 		result := db.Create(&netPO)
 		if result.Error != nil {
-			logs.Logger.WithError(result.Error).Errorf("插入边失败")
+			logs.Logger.WithError(result.Error).Errorf("插入边失败 %w", netPO)
 		}
 		*count++
 		return

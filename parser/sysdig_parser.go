@@ -229,14 +229,40 @@ func (p *SysdigParser) ParsePushLine(rawLine string) error {
 		if sysdigLog.Dir == ">" {
 			return nil
 		}
-		// 先判断是否为 node 的分割日志
-		if sysdigLog.IsTriggerLog() {
-			conf.LastRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID] = sysdigLog.Info[3]
+		// 先判断是否为分割日志
+		if sysdigLog.IsNodeTriggerStartLog() {
+			conf.NodeLastRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID] = sysdigLog.Info[3]
+			return nil
+		} else if sysdigLog.IsNodeTriggerEndLog() {
+			// 如果当前的lastuuid是此uuid，则清空；否则，不应该改变
+			// -> node start log (uuid: a)
+			// ...
+			// -> node start log (uuid: b)
+			// ..
+			// <- node end log (uuid: a)
+			// 此时lastuuid为b，不应当清空
+			if conf.NodeLastRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID] == sysdigLog.Info[3] {
+				conf.NodeLastRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID] = UNKNOWN
+			}
+			return nil
+		} else if sysdigLog.IsOfwatchdogTriggerStartLog() {
+			if _, ok := conf.OfwatchdogRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID]; !ok {
+				conf.OfwatchdogRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID] = make(map[string]bool)
+			}
+			conf.OfwatchdogRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID][sysdigLog.Info[3]] = true
+			return nil
+		} else if sysdigLog.IsOfwatchdogTriggerEndLog() {
+			if _, ok := conf.OfwatchdogRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID]; !ok {
+				return nil
+			}
+			delete(conf.OfwatchdogRequestUUIDMap[sysdigLog.HostID+"#"+sysdigLog.ContainerID], sysdigLog.Info[3])
 			return nil
 		}
+
 		if sysdigLog.Fd == NASTR || sysdigLog.Fd == NILSTR { // 统一不处理
 			return nil
 		}
+		//logs.Logger.Infof("[Debug] file: %s", sysdigLog.Fd)
 		if sysdigLog.EventType == SYS_WRITE || sysdigLog.EventType == SYS_WRITEV {
 			// 6. process ->(write writev) file
 			pl.StartVertex = ProcessVertex{

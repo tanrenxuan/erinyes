@@ -21,6 +21,8 @@ type ConfigStruct struct {
 	} `yaml:"Service"`
 	IPMap      map[string]string `yaml:"IPMap"`
 	GatewayMap map[string]bool   `yaml:"GatewayMap"`
+	HostIP     string            `yaml:"HostIP"`
+	Cin0IP     string            `yaml:"Cin0IP"`
 }
 
 var Config ConfigStruct
@@ -35,8 +37,8 @@ func Init() {
 		logs.Logger.WithError(err).Fatal("unmarshal config file failed")
 	}
 	logs.Logger.Info("成功解析配置文件config")
-	LastRequestUUIDMap = make(map[string]string)
-
+	NodeLastRequestUUIDMap = make(map[string]string)
+	OfwatchdogRequestUUIDMap = make(map[string]map[string]bool)
 }
 
 const (
@@ -48,4 +50,5 @@ const (
 	OuterContainerName = "OuterContainerName"
 )
 
-var LastRequestUUIDMap map[string]string // host_id#容器id -> lastRequestUUID
+var NodeLastRequestUUIDMap map[string]string            // host_id#容器id -> lastRequestUUID
+var OfwatchdogRequestUUIDMap map[string]map[string]bool // host_id#容器id -> lastRequestUUID集合

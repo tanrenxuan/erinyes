@@ -22,10 +22,15 @@ func (Net) TableName() string {
 // EdgeName 实现接口 返回Dot文件中边的名称
 func (n Net) EdgeName() string {
 	return helper.AddQuotation(n.Method)
+	//return helper.AddQuotation(n.Method + "_" + n.UUID)
 }
 func (n Net) HasEdgeUUID() bool {
 	if n.UUID != "" {
 		return true
 	}
 	return false
+}
+
+func (n Net) GetUUID() string {
+	return n.UUID
 }

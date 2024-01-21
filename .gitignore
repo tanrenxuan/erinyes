@@ -2,3 +2,4 @@
 data
 graphs
 logs/*.log
+conf/*.bak

@@ -75,7 +75,7 @@ func HandleGenerate(c *gin.Context) {
 	currentTimeString := currentTime.Format("20060102150405")
 	dotName := currentTimeString + ".dot"
 	svgName := currentTimeString + ".svg"
-	dotString := builder.GenerateDotGraph().String()
+	dotString := builder.GenerateDotGraph("").String()
 	dotContent := []byte(dotString)
 	err, svgContent := generateSVGFromDot(dotContent) // 替换为你生成 svg 文件的逻辑
 	if err != nil {

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"erinyes/conf"
+	"erinyes/logs"
 	"strings"
 )
 
@@ -30,13 +31,22 @@ func (p *NetParser) ParsePushLine(rawLine string) error {
 	pl := ParsedLog{}
 	if containerNameAndID, ok := conf.Config.IPMap[netLog.IPSrc]; ok { // 判断 src 是否为几个 function 中的 ip
 		result := strings.Split(containerNameAndID, "$")
-		pl.StartVertex = SocketVertex{
-			HostID:        conf.MockHostID,
-			HostName:      conf.MockHostName,
-			ContainerID:   result[1],
-			ContainerName: result[0],
-			DstIP:         netLog.IPSrc,
-			DstPort:       netLog.PortSrc,
+		//pl.StartVertex = SocketVertex{
+		//	HostID:        conf.MockHostID,
+		//	HostName:      conf.MockHostName,
+		//	ContainerID:   result[1],
+		//	ContainerName: result[0],
+		//	DstIP:         netLog.IPSrc,
+		//	DstPort:       netLog.PortSrc,
+		//}
+		pl.StartVertex = ProcessVertex{
+			HostID:         conf.MockHostID,
+			HostName:       conf.MockHostName,
+			ContainerID:    result[1],
+			ContainerName:  result[0],
+			ProcessVPID:    "1",
+			ProcessName:    "fwatchdog",
+			ProcessExepath: "unknwon",
 		}
 	} else {
 		pl.StartVertex = SocketVertex{
@@ -50,13 +60,22 @@ func (p *NetParser) ParsePushLine(rawLine string) error {
 	}
 	if containerNameAndID, ok := conf.Config.IPMap[netLog.IPDst]; ok {
 		result := strings.Split(containerNameAndID, "$")
-		pl.EndVertex = SocketVertex{
-			HostID:        conf.MockHostID,
-			HostName:      conf.MockHostName,
-			ContainerID:   result[1],
-			ContainerName: result[0],
-			DstIP:         netLog.IPDst,
-			DstPort:       netLog.PortDst,
+		//pl.EndVertex = SocketVertex{
+		//	HostID:        conf.MockHostID,
+		//	HostName:      conf.MockHostName,
+		//	ContainerID:   result[1],
+		//	ContainerName: result[0],
+		//	DstIP:         netLog.IPDst,
+		//	DstPort:       netLog.PortDst,
+		//}
+		pl.EndVertex = ProcessVertex{
+			HostID:         conf.MockHostID,
+			HostName:       conf.MockHostName,
+			ContainerID:    result[1],
+			ContainerName:  result[0],
+			ProcessVPID:    "1",
+			ProcessName:    "fwatchdog",
+			ProcessExepath: "unknwon",
 		}
 	} else {
 		pl.EndVertex = SocketVertex{
@@ -69,14 +88,36 @@ func (p *NetParser) ParsePushLine(rawLine string) error {
 		}
 	}
 
-	pl.Log = ParsedNetLog{
-		Method:     netLog.Method,
-		PayloadLen: netLog.PayLoadLen,
-		SeqNum:     netLog.SeqNum,
-		AckNum:     netLog.AckNum,
-		Time:       netLog.Time,
-		UUID:       netLog.UUID,
+	if pl.StartVertex.VertexType() == SOCKETTYPE && pl.EndVertex.VertexType() == SOCKETTYPE {
+		pl.Log = ParsedNetLog{
+			Method:     netLog.Method,
+			PayloadLen: netLog.PayLoadLen,
+			SeqNum:     netLog.SeqNum,
+			AckNum:     netLog.AckNum,
+			Time:       netLog.Time,
+			UUID:       netLog.UUID,
+		}
+		p.pusher.PushParsedLog(pl)
+	} else if pl.StartVertex.VertexType() == PROCESSTYPE && pl.EndVertex.VertexType() == SOCKETTYPE {
+		pl.Log = ParsedSysdigLog{
+			EventCLass: NETWORKV1,
+			Relation:   netLog.Method,
+			Operation:  netLog.Method,
+			Time:       netLog.Time,
+			UUID:       netLog.UUID,
+		}
+		p.pusher.PushParsedLog(pl)
+	} else if pl.StartVertex.VertexType() == SOCKETTYPE && pl.EndVertex.VertexType() == PROCESSTYPE {
+		pl.Log = ParsedSysdigLog{
+			EventCLass: NETWORKV2,
+			Relation:   netLog.Method,
+			Operation:  netLog.Method,
+			Time:       netLog.Time,
+			UUID:       netLog.UUID,
+		}
+		p.pusher.PushParsedLog(pl)
+	} else {
+		logs.Logger.Error("There are two process vertex in on edge")
 	}
-	p.pusher.PushParsedLog(pl)
 	return nil
 }

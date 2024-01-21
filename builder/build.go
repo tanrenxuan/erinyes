@@ -1,11 +1,13 @@
 package builder
 
 import (
+	"erinyes/helper"
 	"erinyes/logs"
 	"erinyes/models"
 	"erinyes/parser"
 	"github.com/awalterschulze/gographviz"
 	"os"
+	"strings"
 )
 
 func createDir(dirName string) {
@@ -18,7 +20,7 @@ func createDir(dirName string) {
 }
 
 // GenerateDotGraph 生成内存中的dot
-func GenerateDotGraph() *gographviz.Graph {
+func GenerateDotGraph(uuid string) *gographviz.Graph {
 	graphAst, _ := gographviz.Parse([]byte(`digraph G{}`))
 	graph := gographviz.NewGraph()
 	gographviz.Analyse(graphAst, graph)
@@ -91,7 +93,7 @@ func GenerateDotGraph() *gographviz.Graph {
 			default:
 				logs.Logger.Warnf("Unknown event class: %s in event tables", event.EventClass)
 			}
-			GenerateEdge(start, end, event, graph)
+			GenerateEdge(start, end, event, graph, uuid)
 		}
 		pageNumber++
 	}
@@ -111,7 +113,7 @@ func GenerateDotGraph() *gographviz.Graph {
 			if !(result1 && result2) {
 				continue
 			}
-			GenerateEdge(startSocket, endSocket, net, graph)
+			GenerateEdge(startSocket, endSocket, net, graph, uuid)
 		}
 		pageNumber++
 	}
@@ -119,10 +121,10 @@ func GenerateDotGraph() *gographviz.Graph {
 }
 
 // GenerateDot 生成dot图文件
-func GenerateDot(fileName string) {
+func GenerateDot(fileName string, uuid string) {
 	createDir("graphs/")
 	dotName := "graphs/" + fileName + ".dot"
-	graph := GenerateDotGraph()
+	graph := GenerateDotGraph(uuid)
 	// 写入文件中
 	fo, err := os.OpenFile(dotName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
@@ -133,11 +135,18 @@ func GenerateDot(fileName string) {
 }
 
 // GenerateEdge 在图中生成一条边
-func GenerateEdge(startVertex models.DotVertex, endVertex models.DotVertex, edge models.DotEdge, graph *gographviz.Graph) {
+func GenerateEdge(startVertex models.DotVertex, endVertex models.DotVertex, edge models.DotEdge, graph *gographviz.Graph, uuid string) {
 	// 基于 UUID 过滤一部分边
-	//if !edge.HasEdgeUUID() {
-	//	return
-	//}
+	if uuid != "" {
+		if !edge.HasEdgeUUID() {
+			return
+		}
+		uuidStr := edge.GetUUID()
+		uuids := strings.Split(uuidStr, ",")
+		if !helper.SliceContainsTarget(uuids, uuid) {
+			return
+		}
+	}
 
 	// 边属性
 	edgeM := make(map[string]string)

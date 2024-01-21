@@ -1,6 +1,7 @@
 package models
 
 import (
+	"erinyes/conf"
 	"erinyes/helper"
 	"erinyes/logs"
 	"gorm.io/gorm"
@@ -49,4 +50,26 @@ func (s Socket) VertexName() string {
 // VertexShape 返回该节点的形状
 func (s Socket) VertexShape() string {
 	return "diamond"
+}
+
+// RelateHostAndCin 关联主机IP和Cin0的IP
+func (s *Socket) RelateHostAndCin() {
+	if s.DstIP == conf.Config.Cin0IP {
+		s.DstIP = conf.Config.HostIP
+		s.DstPort = "8085"
+	} else if s.DstIP == conf.Config.HostIP {
+		s.DstPort = "8085"
+	} else if s.DstIP == "127.0.0.1" { // 只会修改流量日志里的socket，因为审计日志中全部修改为了localhost
+		s.DstIP = conf.Config.HostIP
+		s.DstPort = "8085"
+	}
+}
+
+// UnionGateway 统一gateway
+func (s *Socket) UnionGateway() {
+	gateways := conf.Config.GatewayMap
+	if _, exist := gateways[s.DstIP]; exist { // 该socket是gateway
+		s.DstIP = "gateway"
+		s.DstPort = "8080"
+	}
 }

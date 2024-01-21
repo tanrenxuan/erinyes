@@ -67,7 +67,7 @@ func GenerateGraph(_ *cobra.Command, args []string) {
 		sysdigFilepath = args[0]
 		netFilepath = args[1]
 	}
-	parser.FileLogParse(false, sysdigFilepath, netFilepath)
+	parser.FileLogParse(true, sysdigFilepath, netFilepath)
 }
 
 func StartHTTP(_ *cobra.Command, args []string) {
@@ -95,7 +95,11 @@ func GenerateDot(_ *cobra.Command, args []string) {
 		fmt.Printf("no filepath after graph\n")
 		os.Exit(-1)
 	}
-	builder.GenerateDot(args[0])
+	if len(args) == 2 {
+		builder.GenerateDot(args[0], args[1])
+	} else {
+		builder.GenerateDot(args[0], "")
+	}
 }
 
 func BuildSubGraph(cmd *cobra.Command, args []string) {
@@ -106,17 +110,19 @@ func BuildSubGraph(cmd *cobra.Command, args []string) {
 	}
 	var g *multi.WeightedDirectedGraph
 	timeLimit := true
+	uuid := "62c791cd9a1db361c0811cc5bfee2f02"
+	//uuid := ""
 	if len(args) == 6 {
 		depth, err := strconv.Atoi(args[5])
 		if err == nil {
-			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, &depth, timeLimit)
+			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, &depth, timeLimit, uuid)
 		} else {
 			fmt.Printf("depth is not valid, use default depth.\n")
-			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, nil, timeLimit)
+			g = builder.Provenance(args[0], args[1], args[2], args[3], nil, nil, timeLimit, uuid)
 		}
 	} else {
 		fmt.Printf("depth not absent, use default depth.\n")
-		g = builder.Provenance(args[0], args[1], args[2], args[3], nil, nil, timeLimit)
+		g = builder.Provenance(args[0], args[1], args[2], args[3], nil, nil, timeLimit, uuid)
 	}
 	if g == nil {
 		logs.Logger.Infof("failed to get provenance graph")

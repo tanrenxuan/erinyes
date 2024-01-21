@@ -9,9 +9,12 @@ Mysql:
 Service:
   Port: ":8080"
 IPMap:
-  10.10.0.100: product-purchase-authorize-cc$e7463260e076
-  10.10.0.101: product-purchase$9e0f115ee1ae
-  10.10.0.99: product-purchase-get-price$92c34a1672c7
-  10.10.0.102: product-purchase-publish$8789cd7f25d4
+  10.10.0.163: product-purchase-authorize-cc$18e9c84373f2
+  10.10.0.162: product-purchase$55b2a15d5107
+  10.10.0.165: product-purchase-get-price$0732b8f4857a
+  10.10.0.164: product-purchase-publish$4958e5b0ba0d
 GatewayMap:
-  ip5: true
+  10.10.0.65: true
+  10.102.89.199: true
+HostIP: 10.0.88.125
+Cin0IP: 10.10.0.1

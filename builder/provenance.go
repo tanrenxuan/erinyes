@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"gonum.org/v1/gonum/graph/multi"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -24,7 +25,7 @@ type RecordLoc struct {
 }
 
 // Provenance 根据 processID 溯源
-func Provenance(hostID string, containerID string, processID string, processName string, timestamp *int64, depth *int, timeLimit bool) *multi.WeightedDirectedGraph {
+func Provenance(hostID string, containerID string, processID string, processName string, timestamp *int64, depth *int, timeLimit bool, uuid string) *multi.WeightedDirectedGraph {
 	// get root process
 	mysqlDB := models.GetMysqlDB()
 	var process models.Process
@@ -48,25 +49,25 @@ func Provenance(hostID string, containerID string, processID string, processName
 
 	root := RecordLoc{Key: process.ID, Table: ProcessTable}
 	addedNode[root] = id // 存入已访问顶点集合
-	logs.Logger.Infof("开始构建溯源图，processID: %s, processName: %s, 其所在表: %s, 对应主键: %d", processID, process.ProcessName, ProcessTable, process.ID)
-	logs.Logger.Infof("开始正向BFS溯源...")
-	startTime := time.Now()
+	//logs.Logger.Infof("开始构建溯源图，processID: %s, processName: %s, 其所在表: %s, 对应主键: %d", processID, process.ProcessName, ProcessTable, process.ID)
+	//logs.Logger.Infof("开始正向BFS溯源...")
+	//startTime := time.Now()
 	node2time := make(map[RecordLoc]int64) // key为RecordLoc value为timestamp 使用该map进行搜索时的时间戳过滤
-	if timestamp != nil {
-		node2time[root] = *timestamp
-	}
-	BFS(g, root, addedEventLine, addedNetLine, addedNode, node2time, false, depth, timeLimit)
-	logs.Logger.Infof("It takes about %v seconds to forward BFS", time.Since(startTime).Seconds())
+	//if timestamp != nil {
+	//	node2time[root] = *timestamp
+	//}
+	//BFS(g, root, addedEventLine, addedNetLine, addedNode, node2time, false, depth, timeLimit, uuid)
+	//logs.Logger.Infof("It takes about %v seconds to forward BFS", time.Since(startTime).Seconds())
 	middleTime := time.Now()
 	logs.Logger.Infof("开始逆向BFS溯源...")
 	node2time = make(map[RecordLoc]int64) // 这里通过重新赋值来清空map 如果map不清空，时间戳过滤会产生错误
 	if timestamp != nil {
 		node2time[root] = *timestamp
 	}
-	BFS(g, root, addedEventLine, addedNetLine, addedNode, node2time, true, depth, timeLimit)
+	BFS(g, root, addedEventLine, addedNetLine, addedNode, node2time, true, depth, timeLimit, uuid)
 	logs.Logger.Infof("It takes about %v seconds to backward BFS", time.Since(middleTime).Seconds())
 	logs.Logger.Infof("子图构建成功...")
-	logs.Logger.Infof("It takes about %v seconds to build Provenance Graph", time.Since(startTime).Seconds())
+	//logs.Logger.Infof("It takes about %v seconds to build Provenance Graph", time.Since(startTime).Seconds())
 	return g
 }
 
@@ -95,7 +96,7 @@ func AddNewGraphEdge(g *multi.WeightedDirectedGraph, from int64, to int64, relat
 }
 
 // BFS 对数据库进行遍历，获取某个实体int的所有前向(后向)遍历子图(不包括root)
-func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]bool, addedNetLine map[int]bool, addedNode map[RecordLoc]int64, node2time map[RecordLoc]int64, reverse bool, maxLevel *int, timeLimit bool) {
+func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]bool, addedNetLine map[int]bool, addedNode map[RecordLoc]int64, node2time map[RecordLoc]int64, reverse bool, maxLevel *int, timeLimit bool, uuid string) {
 	// 无需处理root
 	visitedNode := map[RecordLoc]bool{root: true}
 	var queue []RecordLoc
@@ -115,6 +116,12 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]
 			cur := queue[0]                                    // 必须用0 不能用i
 			events := FetchEvents(cur.Key, cur.Table, reverse) // 寻找该顶点出发的所有Event边
 			for _, e := range events {
+				if uuid != "" {
+					uuids := strings.Split(e.UUID, ",")
+					if !helper.SliceContainsTarget(uuids, uuid) {
+						continue
+					}
+				}
 				if timeLimit { // 时间戳限制
 					if reverse { // 逆向搜索，时间戳应该递减
 						if node2time[cur] != 0 && node2time[cur] < e.Time {
@@ -198,6 +205,12 @@ func BFS(g *multi.WeightedDirectedGraph, root RecordLoc, addedEventLine map[int]
 			}
 			nets := FetchNets(cur.Key, cur.Table, reverse)
 			for _, n := range nets {
+				if uuid != "" {
+					uuids := strings.Split(n.UUID, ",")
+					if !helper.SliceContainsTarget(uuids, uuid) {
+						continue
+					}
+				}
 				if timeLimit { // 时间戳限制
 					if reverse { // 逆向搜索，时间戳应该递减
 						if node2time[cur] != 0 && node2time[cur] < n.Time {
