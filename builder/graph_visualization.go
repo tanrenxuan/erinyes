@@ -35,7 +35,7 @@ func Visualize(g *multi.WeightedDirectedGraph, filename string) error {
 	}
 	// 填入所有node
 	nodes := g.Nodes()
-	fmt.Printf("Nodes: %d\n", nodes.Len())
+	logs.Logger.Infof("Nodes: %d", nodes.Len())
 	for nodes.Next() {
 		N := nodes.Node()
 		n := N.(GraphNode)
@@ -70,10 +70,11 @@ func Visualize(g *multi.WeightedDirectedGraph, filename string) error {
 			}
 		}
 	}
-	fmt.Printf("Edges: %d\n", count)
+	logs.Logger.Infof("Edges: %d", count)
 	//fmt.Println(graph.String())
 	if err := ioutil.WriteFile("graphs/"+filename+".dot", []byte(graph.String()), 0666); err != nil {
 		return err
 	}
-	return callSystem("dot", "-T", "svg", "graphs/"+filename+".dot", "-o", "graphs/"+filename+".svg")
+	//return callSystem("dot", "-T", "svg", "graphs/"+filename+".dot", "-o", "graphs/"+filename+".svg")
+	return nil
 }

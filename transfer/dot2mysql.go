@@ -13,7 +13,7 @@ import (
 
 const dataSourceName = "root:123456@tcp(localhost:3306)/erinyes"
 
-const dir = "0124"
+const dir = "high"
 
 const defaultValue = "null"
 
@@ -52,16 +52,11 @@ func GetTypeAndValue(s string) (string, string) {
 	return splitList[0], splitList[1]
 }
 
-func GetProcessTableId(value string, containerId string) int {
-	db, err := sql.Open("mysql", dataSourceName)
-	defer db.Close()
-	if err != nil {
-		panic(err)
-	}
+func GetProcessTableId(value string, containerId string, db *sql.DB) int {
 	query := "SELECT id FROM `process` WHERE container_id = ? and process_vpid = ?;"
 	var id int
 
-	err = db.QueryRow(query, containerId, value).Scan(&id)
+	err := db.QueryRow(query, containerId, value).Scan(&id)
 	if err != nil && err != sql.ErrNoRows {
 		panic(err)
 	}
@@ -80,16 +75,11 @@ func GetProcessTableId(value string, containerId string) int {
 	return id
 }
 
-func GetFileTableId(value string, containerId string) int {
-	db, err := sql.Open("mysql", dataSourceName)
-	defer db.Close()
-	if err != nil {
-		panic(err)
-	}
+func GetFileTableId(value string, containerId string, db *sql.DB) int {
 	query := "SELECT id FROM `file` WHERE container_id = ? and file_path = ?;"
 	var id int
 
-	err = db.QueryRow(query, containerId, value).Scan(&id)
+	err := db.QueryRow(query, containerId, value).Scan(&id)
 	if err != nil && err != sql.ErrNoRows {
 		panic(err)
 	}
@@ -108,13 +98,7 @@ func GetFileTableId(value string, containerId string) int {
 	return id
 }
 
-func GetSocketTableId(value string, containerId string) int {
-	db, err := sql.Open("mysql", dataSourceName)
-	defer db.Close()
-	if err != nil {
-		panic(err)
-	}
-
+func GetSocketTableId(value string, containerId string, db *sql.DB) int {
 	ip, port := strings.Split(value, ":")[0], strings.Split(value, ":")[1]
 
 	if port == "53" || port == "8080" {
@@ -124,7 +108,7 @@ func GetSocketTableId(value string, containerId string) int {
 	query := "SELECT id FROM `socket` WHERE container_id = ? and dst_ip = ? and dst_port = ?;"
 	var id int
 
-	err = db.QueryRow(query, containerId, ip, port).Scan(&id)
+	err := db.QueryRow(query, containerId, ip, port).Scan(&id)
 	if err != nil && err != sql.ErrNoRows {
 		panic(err)
 	}
@@ -143,24 +127,18 @@ func GetSocketTableId(value string, containerId string) int {
 	return id
 }
 
-func GetEventId(startId int, endId int, eventClass string, time string) error {
-	db, err := sql.Open("mysql", dataSourceName)
-	defer db.Close()
-	if err != nil {
-		panic(err)
-	}
-
+func GetEventId(startId int, endId int, eventClass string, time string, db *sql.DB) error {
 	timeBigInt, _ := strconv.ParseInt(time, 10, 64)
 
 	if eventClass == "Socket2Socket" {
 		insertQuery := "INSERT INTO `net` (src_id, dst_id, method, time) VALUES (?, ?, ?, ?);"
-		_, err = db.Exec(insertQuery, startId, endId, "post", timeBigInt)
+		_, err := db.Exec(insertQuery, startId, endId, "post", timeBigInt)
 		if err != nil {
 			panic(err)
 		}
 	} else {
 		insertQuery := "INSERT INTO `event` (src_id, dst_id, event_class, relation, operation, time, uuid) VALUES (?, ?, ?, ?, ?, ?, ?);"
-		_, err = db.Exec(insertQuery, startId, endId, eventClass, defaultValue, defaultValue, timeBigInt, defaultValue)
+		_, err := db.Exec(insertQuery, startId, endId, eventClass, defaultValue, defaultValue, timeBigInt, defaultValue)
 		if err != nil {
 			panic(err)
 		}
@@ -169,7 +147,7 @@ func GetEventId(startId int, endId int, eventClass string, time string) error {
 	return nil
 }
 
-func transform(start string, end string, containerId string, time string) error {
+func transform(start string, end string, containerId string, time string, db *sql.DB) error {
 	startType, startValue := GetTypeAndValue(start)
 	endType, endValue := GetTypeAndValue(end)
 
@@ -181,19 +159,19 @@ func transform(start string, end string, containerId string, time string) error 
 	var endId int
 
 	if startType == "Process" {
-		startId = GetProcessTableId(startValue, containerId)
+		startId = GetProcessTableId(startValue, containerId, db)
 	} else if startType == "File" {
-		startId = GetFileTableId(startValue, containerId)
+		startId = GetFileTableId(startValue, containerId, db)
 	} else if startType == "NetPeer" {
-		startId = GetSocketTableId(startValue, containerId)
+		startId = GetSocketTableId(startValue, containerId, db)
 	}
 
 	if endType == "Process" {
-		endId = GetProcessTableId(endValue, containerId)
+		endId = GetProcessTableId(endValue, containerId, db)
 	} else if endType == "File" {
-		endId = GetFileTableId(endValue, containerId)
+		endId = GetFileTableId(endValue, containerId, db)
 	} else if endType == "NetPeer" {
-		endId = GetSocketTableId(endValue, containerId)
+		endId = GetSocketTableId(endValue, containerId, db)
 	}
 
 	eventClass := "null"
@@ -211,12 +189,18 @@ func transform(start string, end string, containerId string, time string) error 
 		eventClass = "Socket2Socket"
 	}
 
-	GetEventId(startId, endId, eventClass, time)
+	GetEventId(startId, endId, eventClass, time, db)
 
 	return nil
 }
 
 func main() {
+
+	db, err := sql.Open("mysql", dataSourceName)
+	defer db.Close()
+	if err != nil {
+		panic(err)
+	}
 
 	dotPaths := GetPaths()
 
@@ -240,7 +224,7 @@ func main() {
 
 			time := strings.Trim(edge.Attrs["label"], `"`)
 
-			transform(start, end, containerId, time)
+			transform(start, end, containerId, time, db)
 
 		}
 	}

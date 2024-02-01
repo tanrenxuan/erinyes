@@ -3,4 +3,6 @@ data
 graphs
 logs/*.log
 conf/*.bak
-transfer/0124
+transfer/high
+transfer/low
+transfer/middle
