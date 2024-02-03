@@ -13,7 +13,7 @@ import (
 
 const dataSourceName = "root:123456@tcp(localhost:3306)/erinyes"
 
-const dir = "high"
+const dir = "low"
 
 const defaultValue = "null"
 

@@ -214,9 +214,9 @@ func (s *SysdigLog) ExtractPort() (string, bool) {
 
 // FilteredFilePath 聚合一部分路径前缀，即前缀相同的节点看作同一个，否则 file 节点太多
 func (s *SysdigLog) FilteredFilePath() string {
-	if strings.HasPrefix(s.Fd, "/home/app/node_modules") {
-		return "/home/app/node_modules"
-	}
+	//if strings.HasPrefix(s.Fd, "/home/app/node_modules") {
+	//	return "/home/app/node_modules"
+	//}
 	return s.Fd
 }
 

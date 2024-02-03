@@ -75,6 +75,6 @@ func Visualize(g *multi.WeightedDirectedGraph, filename string) error {
 	if err := ioutil.WriteFile("graphs/"+filename+".dot", []byte(graph.String()), 0666); err != nil {
 		return err
 	}
-	//return callSystem("dot", "-T", "svg", "graphs/"+filename+".dot", "-o", "graphs/"+filename+".svg")
-	return nil
+	return callSystem("dot", "-T", "svg", "graphs/"+filename+".dot", "-o", "graphs/"+filename+".svg")
+	//return nil
 }
