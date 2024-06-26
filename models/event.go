@@ -1,6 +1,10 @@
 package models
 
-import "erinyes/helper"
+import (
+	"erinyes/helper"
+	"fmt"
+	"strings"
+)
 
 type Event struct {
 	ID         int    `gorm:"primaryKey;column:id"`
@@ -32,4 +36,12 @@ func (e Event) HasEdgeUUID() bool {
 
 func (e Event) GetUUID() string {
 	return e.UUID
+}
+
+func (e Event) LinkLabel() string {
+	return strings.ToLower(e.Relation)
+}
+
+func (e Event) LinkInfo() string {
+	return fmt.Sprintf("relation:%s\ntime:%d\nuuid:%s", e.Relation, e.Time, e.UUID)
 }

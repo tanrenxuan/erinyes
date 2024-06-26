@@ -4,6 +4,7 @@ import (
 	"erinyes/conf"
 	"erinyes/helper"
 	"erinyes/logs"
+	"fmt"
 	"gorm.io/gorm"
 )
 
@@ -72,4 +73,24 @@ func (s *Socket) UnionGateway() {
 		s.DstIP = "gateway"
 		s.DstPort = "8080"
 	}
+}
+
+func (s Socket) LinkID() string {
+	return s.DstIP + ":" + s.DstPort + "#" + s.HostID + "_" + s.ContainerID
+}
+
+func (s Socket) LinkName() string {
+	return s.DstIP + ":" + s.DstPort
+}
+
+func (s Socket) LinkSymbol() string {
+	return "diamond"
+}
+
+func (s Socket) LinkInfo() string {
+	return fmt.Sprintf("host_id:%s\ncontainer_id:%s\nip:%s\nport:%s", s.HostID, s.ContainerID, s.DstIP, s.DstPort)
+}
+
+func (s Socket) LinkCategory() string {
+	return s.HostID + "_" + s.ContainerID
 }

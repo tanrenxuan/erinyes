@@ -1,6 +1,10 @@
 package models
 
-import "erinyes/helper"
+import (
+	"erinyes/helper"
+	"fmt"
+	"strings"
+)
 
 type Net struct {
 	ID         int    `gorm:"primaryKey;column:id"`
@@ -33,4 +37,12 @@ func (n Net) HasEdgeUUID() bool {
 
 func (n Net) GetUUID() string {
 	return n.UUID
+}
+
+func (n Net) LinkLabel() string {
+	return strings.ToLower(n.Method)
+}
+
+func (n Net) LinkInfo() string {
+	return fmt.Sprintf("method:%s\npayload_len:%d\nseq_num:%d\nack_num:%d\ntime:%d\nuuid:%s", n.Method, n.PayloadLen, n.SeqNum, n.AckNum, n.Time, n.UUID)
 }

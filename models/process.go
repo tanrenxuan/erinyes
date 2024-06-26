@@ -3,6 +3,7 @@ package models
 import (
 	"erinyes/helper"
 	"erinyes/logs"
+	"fmt"
 	"gorm.io/gorm"
 )
 
@@ -47,4 +48,24 @@ func (p Process) VertexName() string {
 // VertexShape 返回该节点的形状
 func (p Process) VertexShape() string {
 	return "box"
+}
+
+func (p Process) LinkID() string {
+	return p.ProcessVPID + "_" + p.ProcessName + "#" + p.HostID + "_" + p.ContainerID
+}
+
+func (p Process) LinkName() string {
+	return p.ProcessVPID + "_" + p.ProcessName
+}
+
+func (p Process) LinkSymbol() string {
+	return "rect"
+}
+
+func (p Process) LinkInfo() string {
+	return fmt.Sprintf("host_id:%s\ncontainer_id:%s\nprocess_vpid:%s\nprocess_name:%s\nprocess_exe_path:%s", p.HostID, p.ContainerID, p.ProcessVPID, p.ProcessName, p.ProcessExepath)
+}
+
+func (p Process) LinkCategory() string {
+	return p.HostID + "_" + p.ContainerID
 }

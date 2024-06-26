@@ -74,6 +74,16 @@ func StartHTTP(_ *cobra.Command, args []string) {
 	go parser.HTTPLogParse(true)
 	r := gin.Default()
 
+	r.POST("/api/user/login", service.HandleLogin)
+	r.GET("/api/user/info", service.HandleInfo)
+	r.POST("/api/user/logout", service.HandleLogout)
+
+	r.GET("/api/dashboard", service.HandleDashboard)
+	r.POST("/api/process", service.HandleProcess)
+	r.POST("/api/file", service.HandleFile)
+	r.POST("/api/socket", service.HandleSocket)
+	r.POST("/api/graph", service.HandleGraph)
+
 	r.GET("/api/ping", service.HandlePing)
 	r.POST("/api/sysdig/log", service.HandleSysdigLog)
 	r.POST("/api/sysdig/logs", service.HandleSysdigLogs)
@@ -81,7 +91,7 @@ func StartHTTP(_ *cobra.Command, args []string) {
 	r.POST("/api/net/log", service.HandleNetLog)
 	r.POST("/api/net/logs", service.HandleNetLogs)
 
-	r.GET("/api/generate", service.HandleGenerate)
+	r.POST("/api/generate", service.HandleGenerate)
 	err := r.Run(conf.Config.Service.Port)
 	if err != nil {
 		panic(err)

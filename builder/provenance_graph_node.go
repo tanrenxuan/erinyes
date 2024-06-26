@@ -119,3 +119,24 @@ func (n GraphNode) VertexName() string {
 func (n GraphNode) VertexShape() string {
 	return n.nodeInfo.Shape()
 }
+
+// 只是为了实现接口，偷懒了...
+func (n GraphNode) LinkID() string {
+	return ""
+}
+
+func (n GraphNode) LinkName() string {
+	return ""
+}
+
+func (n GraphNode) LinkSymbol() string {
+	return ""
+}
+
+func (n GraphNode) LinkInfo() string {
+	return ""
+}
+
+func (n GraphNode) LinkCategory() string {
+	return ""
+}

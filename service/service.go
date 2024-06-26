@@ -71,16 +71,22 @@ func HandleNetLogs(c *gin.Context) {
 }
 
 func HandleGenerate(c *gin.Context) {
+	var req QueryGraph
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 40001, "message": err.Error()})
+		return
+	}
+
 	currentTime := time.Now()
 	currentTimeString := currentTime.Format("20060102150405")
 	dotName := currentTimeString + ".dot"
 	svgName := currentTimeString + ".svg"
-	dotString := builder.GenerateDotGraph("").String()
+	dotString := builder.GenerateDotGraph(req.UUID).String()
 	dotContent := []byte(dotString)
 	err, svgContent := generateSVGFromDot(dotContent) // 替换为你生成 svg 文件的逻辑
 	if err != nil {
 		logs.Logger.WithError(err).Errorf("generate svg failed")
-		c.String(http.StatusInternalServerError, "生成svg失败")
+		c.JSON(http.StatusOK, gin.H{"code": 40001, "message": "生成svg失败"})
 		return
 	}
 
@@ -99,8 +105,19 @@ func HandleGenerate(c *gin.Context) {
 	// 关闭 ZIP 文件
 	zipWriter.Close()
 
+	//// 将 ZIP 文件保存到本地
+	//zipFileName := "files.zip"
+	//err = ioutil.WriteFile(zipFileName, zipBuffer.Bytes(), 0644)
+	//if err != nil {
+	//	logs.Logger.WithError(err).Errorf("failed to save ZIP file locally")
+	//	// 如果保存失败，可以返回相应的错误信息给前端
+	//	c.JSON(http.StatusOK, gin.H{"code": 40002, "message": "保存文件失败"})
+	//	return
+	//}
+
 	// 设置响应头，指定文件名
 	c.Header("Content-Disposition", "attachment; filename=files.zip")
+	c.Header("requestType", "file")
 
 	// 返回 ZIP 文件内容
 	c.Data(http.StatusOK, "application/zip", zipBuffer.Bytes())
